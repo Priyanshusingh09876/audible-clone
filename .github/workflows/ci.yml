@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test-content-service:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      - name: Run tests
+        working-directory: content-service
+        run: ./mvnw test
+
+  test-library-service:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      - name: Run tests
+        working-directory: library-service
+        run: ./mvnw test
+
+  test-notification-service:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        working-directory: notification-service
+        run: pip install -r requirements.txt
+      - name: Run tests
+        working-directory: notification-service
+        run: python -m pytest tests/ -v
+
+  build-docker:
+    runs-on: ubuntu-latest
+    needs: [test-content-service, test-library-service, test-notification-service]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build all Docker images
+        run: docker-compose build

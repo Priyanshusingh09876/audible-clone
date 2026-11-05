@@ -1,0 +1,32 @@
+# Java
+target/
+*.class
+*.jar
+*.war
+.mvn/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.env
+
+# Node
+node_modules/
+build/
+dist/
+.env.local
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Docker
+.docker/
+
+# Secrets
+*.pem
+*.key
+secrets/

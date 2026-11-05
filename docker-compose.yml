@@ -1,0 +1,96 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: audible
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secret
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+  content-service:
+    build: ./content-service
+    ports:
+      - "8001:8001"
+    depends_on:
+      - postgres
+      - kafka
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/audible
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: secret
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+
+  library-service:
+    build: ./library-service
+    ports:
+      - "8002:8002"
+    depends_on:
+      - postgres
+      - redis
+      - kafka
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/audible
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: secret
+      SPRING_REDIS_HOST: redis
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+
+  notification-service:
+    build: ./notification-service
+    ports:
+      - "8003:8003"
+    depends_on:
+      - kafka
+      - redis
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      REDIS_HOST: redis
+
+  api-gateway:
+    build: ./api-gateway
+    ports:
+      - "8080:8080"
+    depends_on:
+      - content-service
+      - library-service
+    environment:
+      CONTENT_SERVICE_URL: http://content-service:8001
+      LIBRARY_SERVICE_URL: http://library-service:8002
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api-gateway
+
+volumes:
+  postgres_data:
